@@ -25,7 +25,9 @@ def _format_or(items):
 
 
 def _start_bit(signal):
-    if signal.byte_order == 'big_endian':
+    
+    #big endian decoding only applies if greater than a single byte
+    if signal.byte_order == 'big_endian' and signal.length > 8:
         return (8 * (signal.start // 8) + (7 - (signal.start % 8)))
     else:
         return signal.start

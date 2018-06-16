@@ -308,6 +308,133 @@ class CanToolsDatabaseTest(unittest.TestCase):
         decoded = db.decode_message(example_message_name, encoded)
         self.assertEqual(decoded, decoded_message)
 
+    def test_big_endian_signal_byte_kcd_decode(self):
+        """Decode a signal with bigendian 
+
+        """
+
+        testkcd = """<?xml version="1.0" standalone="no"?>
+        <NetworkDefinition xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://kayak.2codeornot2code.org/1.0" xsi:schemaLocation="Definition.xsd">
+               <Node id="1" name="test"/>
+               <Bus name="Example">
+                      <Message name="generic" id="0x16C0FFEE" length="8" format="extended">
+                             <Producer>
+                                   <NodeRef id="1"/>
+                             </Producer>
+                             <Signal name="test" offset="56" length="8" endianess="big" >
+                             </Signal>
+                      </Message>
+                   </Bus>
+        </NetworkDefinition>
+        """
+
+        db = cantools.db.load_string(testkcd,database_format="kcd")
+
+        cantools.db.Signal('testsubbyte',56,8,'big_endian',False,1,56)
+
+        decoded_message = {
+            'test': 0x1F
+        }
+        encoded_message = b'\x00\x00\x00\x00\x00\x00\x00\x1F'
+
+        decoded = db.decode_message(0x16C0FFEE,
+                                    encoded_message,
+                                    decode_choices=False)
+                       
+        self.assertEqual(db.get_message_by_frame_id(0x16C0FFEE).signals[0].start, 56)
+        self.assertEqual(decoded, decoded_message)
+
+    def test_big_endian_signal_single_byte_decode(self):
+
+        """Validate that if a single byte is labelled as bigendian, it is decoded correctly
+
+        """
+
+        startBit = 56
+        signalLength = 8
+
+        db = cantools.db.Database()
+
+        signal = cantools.db.Signal('testsinglebyte',startBit,signalLength,'big_endian',False,1)
+        
+        self.assertEqual(signal.start, startBit)
+        self.assertEqual(signal.length, signalLength)
+
+        msg = cantools.db.Message(0x16C0FFEE,'name',8,[signal])
+        
+        db.add_message(msg)
+
+        decoded_message = {
+            'testsinglebyte': 0x1F
+        }
+        encoded_message = b'\x00\x00\x00\x00\x00\x00\x00\x1F'
+
+        decoded = db.decode_message(0x16C0FFEE,
+                                    encoded_message,
+                                    decode_choices=False)
+        
+        self.assertEqual(decoded, decoded_message)
+
+    def test_big_endian_signal_nine_bit_decode(self):
+
+        """Validate that if a greater than 1 byte but less than 2 byte (9 bit) is labelled as bigendian, it is decoded correctly
+
+        """
+
+        startBit = 55
+        signalLength = 9
+
+        db = cantools.db.Database()
+
+        signal = cantools.db.Signal('testninebit',startBit,signalLength,'big_endian',False,1)
+        
+        self.assertEqual(signal.start, startBit)
+        self.assertEqual(signal.length, signalLength)
+
+        msg = cantools.db.Message(0x16C0FFEE,'name',8,[signal])
+        
+        db.add_message(msg)
+
+        decoded_message = {
+            'testsinglebyte': 0x10F
+        }
+        encoded_message = b'\x00\x00\x00\x00\x00\x00\x01\x1F'
+
+        decoded = db.decode_message(0x16C0FFEE,
+                                    encoded_message,
+                                    decode_choices=False)
+        
+        self.assertEqual(decoded, decoded_message)
+
+    def test_big_endian_signal_two_byte_decode(self):
+
+        #test seems to fail because sanity shows self._number_of_bits_to_unpack == 71, which is greater than 64
+
+        startBit = 48
+        signalLength = 16
+
+        db = cantools.db.Database()
+
+        signal = cantools.db.Signal('twobyte',startBit,signalLength,'big_endian',False,1)
+        self.assertEqual(signal.start, startBit)
+        self.assertEqual(signal.length, signalLength)
+
+        msg = cantools.db.Message(0x16C0FFEE,'name',8,[signal])
+        
+        db.add_message(msg)
+
+        decoded_message = {
+            'twobyte': 0x1F2F
+        }
+        encoded_message = b'\x00\x00\x00\x00\x00\x00\x1F\x2F'
+
+        decoded = db.decode_message(0x16C0FFEE,
+                                    encoded_message,
+                                    decode_choices=False)
+        
+        self.assertEqual(decoded, decoded_message)
+
+
     def test_big_endian_no_decode_choices(self):
         """Decode a big endian signal with `decode_choices` set to False.
 
